@@ -1,0 +1,1382 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<script type=text/javascript>
+
+    var filenamelist;
+    var FileViewListIndex;
+    var wifi_status
+    var wifilist;
+    var WifiViewListIndex;
+    var readTempFlag = true;
+    var ServerBusy = false;
+
+	function stop() {
+        return false;
+    }
+    document.oncontextmenu = stop;
+    function myInterval() {
+        if (wifi_status == "Connecting" || wifi_status == "Connecting." || wifi_status == "Connecting.." || wifi_status == "Connecting...") {
+            if (wifi_status == "Connecting"){
+                wifi_status = wifi_status + ".";
+            }
+            else if (wifi_status == "Connecting.") {
+                wifi_status = wifi_status + ".";
+            }
+            else if (wifi_status == "Connecting..") {
+                wifi_status = wifi_status + ".";
+            }
+            else if (wifi_status == "Connecting...") {
+                wifi_status = "Connecting";
+            }
+            $("#ip")[0].innerHTML = wifi_status + "(" + $("#ssid")[0].value + ")";
+            $("#HeadMask").show();
+        }
+        else {
+            $("#HeadMask").hide();
+        }
+        if (ServerBusy == false) {
+            $.getJSON("/home", { cmd: 'sys_info:' + readTempFlag.toString() },
+            function (data) {
+                wifi_status = data.ip
+                $("#ip")[0].innerHTML = data.ip;
+                $("#usb_to_serial")[0].innerHTML = data.usb_to_serial;
+                if (data.print_process_status.split(':')[1] == '') {
+                    $("#printing_filename")[0].innerHTML = "File&nbsp:&nbspNone";
+                }
+                else {
+                    $("#printing_filename")[0].innerHTML = "File&nbsp:&nbsp" + data.print_process_status.split(':')[1];
+                }
+                if (data.print_process_status.split(':')[0] == '') {
+                    $("#printing_file_status")[0].innerHTML = "Status&nbsp:&nbspNone";
+                }
+                else {
+                    $("#printing_file_status")[0].innerHTML = "Status&nbsp:&nbsp" + data.print_process_status.split(':')[0];
+                }
+                if (data.print_process_status.split(':')[0] == 'stop' || data.print_process_status.split(':')[0] == 'done' || data.print_process_status.split(':')[0] == '') {
+                    $("#HeadMask1").hide();
+                }
+                else {              
+                    $("#HeadMask1").show();
+                }
+                $("#passed_time")[0].innerHTML = "Passed Time&nbsp:&nbsp" + data.passedTime;
+
+                totallines = parseInt(data.print_process_status.split(':')[2]);
+                currentlines = parseInt(data.print_process_status.split(':')[3]);
+                if (totallines > 0) {
+                    $('.print_progress').data('easyPieChart').update((currentlines * 100 / totallines));
+                }
+                else {
+                    $('.print_progress').data('easyPieChart').update(0);
+                }
+                noozle_1_temp = parseInt(data.temperature.split(':')[0]);
+                hotbed_1_temp = parseInt(data.temperature.split(':')[1]);
+                if (noozle_1_temp != 0) {
+                    $('.chart_noozle_1').data('easyPieChart').update(noozle_1_temp / 2.4);
+                }
+
+                if (hotbed_1_temp != 0) {
+                    $('.hotbed_1').data('easyPieChart').update(hotbed_1_temp / 1.5);
+                }
+
+                for (var i = 0; i < 3; i++) {
+                    $('#comport' + i.toString())[0].innerHTML = '';
+                }
+                var j = 0;
+                for (var i = 0; i < data.comlist.length; i++) {
+                    if (data.comlist[i].length < 20 && j < 3) {
+                        $('#comport' + (j++).toString())[0].innerHTML = data.comlist[i];
+                    }
+                }
+                for (var i = 0; i < data.receviedData.length; i++) {
+                    if ($("#viewTemp")[0].checked == true) {
+                        $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.receviedData[i];
+                    }
+                    else {
+                        if (data.receviedData[i].indexOf("T") > 0 && data.receviedData[i].indexOf("B") > 0 && data.receviedData[i].indexOf("T0") > 0) {
+
+                        }
+                        else {
+                            $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.receviedData[i];
+                        }
+                    }
+                }
+                $("#cmdDialog")[0].scrollTop = $("#cmdDialog")[0].scrollHeight;
+            });
+        }
+    }
+
+    function ClearWifiListView() {
+        for (var i = 0; i < 4; i++) {
+            $("#wifilist" + i.toString())[0].innerHTML = "<br>";
+            $("#wifiinfo" + i.toString())[0].innerHTML = "<br>";
+        }
+    }
+
+    function ShowWifiListView() {
+		var ssid
+		var info
+        for (var i = 0; i < $("#wifi .todo li").length; i++) {
+            $("#wifi .todo li")[i].className = "";
+        }
+        switch (WifiViewListIndex) {
+            case "1":
+                ClearWifiListView();
+                for (var i = 0; i < wifilist.length; i++) {
+                    if (i < 4) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + i.toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + i.toString())[0].innerHTML = wifilist[i].split(';')[1] + ',' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        break;
+                    }
+                }
+                break;
+            case "2":
+                ClearWifiListView();
+                for (var i = 0; i < wifilist.length; i++) {
+                    if (i >= 4 && i < 8) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + (i - 4).toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + (i - 4).toString())[0].innerHTML = wifilist[i].split(';')[1] + ',' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "3":
+                ClearWifiListView();
+                for (var i = 0; i < wifilist.length; i++) {
+                    if (i >= 8 && i < 12) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + (i - 8).toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + (i - 8).toString())[0].innerHTML = wifilist[i].split(';')[1] + ',' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "4":
+                ClearWifiListView();
+                for (var i = 0; i < wifilist.length; i++) {
+                    if (i >= 12 && i < 16) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + (i - 12).toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + (i - 12).toString())[0].innerHTML = wifilist[i].split(';')[1] + ',' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "5":
+                ClearWifiListView();
+                for (var i = 0; i < wifilist.length; i++) {
+                    if (i >= 16 && i < 20) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + (i - 16).toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + (i - 16).toString())[0].innerHTML = wifilist[i].split(';')[1] + ',' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "6":
+                ClearWifiListView();
+                for (var i = 0; i < filenamelist.length; i++) {
+                    if (i >= 20 && i < 24) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + (i - 20).toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + (i - 20).toString())[0].innerHTML = wifilist[i].split(';')[1] + ',' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "7":
+                ClearWifiListView();
+                for (var i = 0; i < filenamelist.length; i++) {
+                    if (i >= 24 && i < 28) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + (i - 24).toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + (i - 24).toString())[0].innerHTML = wifilist[i].split(';')[1] + ',' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "8":
+                ClearWifiListView();
+                for (var i = 0; i < filenamelist.length; i++) {
+                    if (i >= 28 && i < 32) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + (i - 28).toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + (i - 28).toString())[0].innerHTML = wifilist[i].split(';')[1] + ',' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            default:
+                ClearWifiListView();
+                for (var i = 0; i < wifilist.length; i++) {
+                    if (i < 4) {
+						if(wifilist[i].split(';')[0] == '')
+						{
+							ssid = "Unkown";
+						}
+						else
+						{
+							ssid =wifilist[i].split(';')[0];
+						}
+                        $("#wifilist" + i.toString())[0].innerHTML = ssid;
+                        $("#wifiinfo" + i.toString())[0].innerHTML = wifilist[i].split(';')[1] + '	,	' + wifilist[i].split(';')[2];
+                    }
+                    else {
+                        break;
+                    }
+                }
+        }
+    }
+
+    function ClearFileListView()
+    {
+        for (var i = 0; i < 4; i++) {
+            $("#filelist" + i.toString())[0].innerHTML = "<br>";
+            $("#filesize" + i.toString())[0].innerHTML = "<br>";
+            }
+    }
+    function ShowFileListView()
+    {
+        for (var i = 0; i < $(".todo li").length; i++)
+        {
+            $(".todo li")[i].className = "";
+        }
+        switch (FileViewListIndex) {
+            case "1":
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i < 4) {
+                        $("#filelist" + i.toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + i.toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        break;
+                    }
+                }
+                break;
+            case "2":
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i >= 4 && i < 8) {
+                        $("#filelist" + (i - 4).toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + (i - 4).toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "3":
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i >= 8 && i < 12) {
+                        $("#filelist" + (i - 8).toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + (i - 8).toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "4":
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i >= 12 && i < 16) {
+                        $("#filelist" + (i - 12).toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + (i - 12).toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "5":
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i >= 16 && i < 20) {
+                        $("#filelist" + (i - 16).toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + (i - 16).toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "6":
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i >= 20 && i < 24) {
+                        $("#filelist" + (i - 20).toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + (i - 20).toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "7":
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i >= 24 && i < 28) {
+                        $("#filelist" + (i - 24).toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + (i - 24).toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            case "8":
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i >= 28 && i < 32) {
+                        $("#filelist" + (i - 28).toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + (i - 28).toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                break;
+            default:
+                ClearFileListView();
+                for (var i = 0; i < filenamelist.length / 2; i++) {
+                    if (i < 4) {
+                        $("#filelist" + i.toString())[0].innerHTML = filenamelist[i * 2];
+                        $("#filesize" + i.toString())[0].innerHTML = filenamelist[i * 2 + 1];
+                    }
+                    else {
+                        break;
+                    }
+                }
+        }
+    }
+
+    $(window).ready(function () {
+
+        var MoveUnit = 1;
+        var uploader = WebUploader.create({
+
+            swf: '/static/scripts/Uploader.swf',
+
+            server: '/',
+
+            pick: '#picker',
+
+            resize: false,
+
+            accept: {
+                title: 'GCODE',
+                extensions: 'gcode'
+            }
+        });
+
+        uploader.on('fileQueued', function (file) {
+            $('#thelist').append('<div id="' + file.id + '" class="item">' +
+                '<h4 class="info">' + file.name + '</h4>' +
+                '<p class="state">waiting...</p>' +
+            '</div>');
+        });
+
+        uploader.on('uploadProgress', function (file, percentage) {
+            var $li = $('#' + file.id),
+                $percent = $li.find('.progress .progress-bar');
+
+            if (!$percent.length) {
+                $percent = $('<div class="progress progress-striped active">' +
+                  '<div class="progress-bar" role="progressbar" style="width: 0%">' +
+                  '</div>' +
+                '</div>').appendTo($li).find('.progress-bar');
+            }
+
+            $li.find('p.state').text('uploading');
+
+            $percent.css('width', percentage * 100 + '%');
+        });
+
+        uploader.on('uploadSuccess', function (file) {
+            $('#' + file.id).fadeOut();
+        });
+
+        uploader.on('uploadError', function (file) {
+            alert(file.name.toString() + "UpLoadFailed!");
+        });
+
+        uploader.on('uploadComplete', function (file) {
+            $('#' + file.id).find('.progress').fadeOut();
+        });
+
+        uploader.on('fileDequeued', function (file) {
+            $('#' + file.id).fadeOut();
+            $('#' + file.id).find('.progress').fadeOut();
+        });
+
+        uploader.on('all', function (type) {
+            if (type == 'uploadFinished') {
+                $("#RefreshMask").show();
+                $("#FileUpLoadLayer").hide();
+                $.getJSON("/home", { cmd: 'file' },
+                function (data) {
+                    filenamelist = data.filelist;
+                    ShowFileListView();
+                    $("#RefreshMask").hide();
+                    ServerBusy = false;
+                    uploader.reset();
+                });
+            }
+            else if (type === 'stopUpload') {
+                $("#RefreshMask").show();
+                $("#FileUpLoadLayer").hide();
+                $.getJSON("/home", { cmd: 'file' },
+                function (data) {
+                    filenamelist = data.filelist;
+                    ShowFileListView();
+                    $("#RefreshMask").hide();
+                });
+            }
+        });
+  
+        setInterval("myInterval()", 2000);
+
+        $(".nav li").click(function (e) {
+                switch (e.currentTarget.textContent) {
+                    case "Home":
+                        $("#WifiConnecting").hide();
+                        var i = 0;
+                        break;
+                    case "File":
+                        $("#RefreshMask").show();
+                        $("#WifiConnecting").hide();
+                        $.getJSON("/home", { cmd: 'file' },
+                        function (data) {
+                            filenamelist = data.filelist;
+                            ShowFileListView();
+                            $("#RefreshMask").hide();
+                        });
+                        break;
+                    case "Wifi":
+                        $("#WifiRefreshMask").show();
+                        $.getJSON("/home", { cmd: 'wifi' },
+                        function (data) {
+                            wifilist = data.wifilist;
+                            ShowWifiListView();
+                            $("#WifiRefreshMask").hide();
+                        });
+                        break;
+                    case "Setting":
+                        $("#keyboard2").hide();
+                        $("#Cmd_To_Send")[0].value = '';
+                        break;
+                    default:
+                }
+        });
+
+		$("#wifi .pagination li").click(function (e) {
+            WifiViewListIndex = e.currentTarget.textContent;
+            ShowWifiListView();
+        });
+
+        $("#file .pagination li").click(function (e) {
+            FileViewListIndex = e.currentTarget.textContent;
+            ShowFileListView();
+        });
+        
+        $("#RefreshFileList").click(function () {
+            $("#RefreshMask").show();
+            $.getJSON("/home", { cmd: 'file' },
+            function (data) {
+                filenamelist = data.filelist;
+                ShowFileListView();
+                $("#RefreshMask").hide();
+                $("#FileUpLoadLayer").hide();
+            });
+        });
+        
+        $("#PrintFile").click(function () {
+            var filename = $("#file .todo .todo-done")[0].innerText.split("\n")[0];
+            $.getJSON("/home", { cmd: 'printfile:' + filename },
+            function (data) {
+                filename = data.filename;
+                $(".nav li")[0].className = "active";
+                $(".nav li")[1].className = "";
+                $("#home")[0].className = "tab-pane active";
+                $("#file")[0].className = "tab-pane fade";
+            });
+        });
+
+        $("#pause").click(function () {
+            $.getJSON("/home", { cmd: 'pause_print'},
+            function (data) {
+            });
+        });
+
+        $("#start").click(function () {
+            $.getJSON("/home", { cmd: 'start_print'},
+            function (data) {
+            });
+        });
+        
+        $("#stop").click(function () {
+            $("#comfirm_dialog").show();
+            $("#ComfirmMask").show();           
+        });
+
+        $("#Cancel_Stop_Printing").click(function () {
+            $("#comfirm_dialog").hide();
+            $("#ComfirmMask").hide();           
+        });
+
+        $("#Stop_Printing").click(function () {
+            $.getJSON("/home", { cmd: 'stop_print' },
+            function (data) {
+                $("#comfirm_dialog").hide();
+                $("#ComfirmMask").hide();
+            });     
+        });
+
+        $("#Hot_Nozzle_1").click(function () {
+            if ($("#Hot_Nozzle_1")[0].firstElementChild.className == "switch-off switch-animate") {
+                $.getJSON("/home", { cmd: 'hot_nozzle_1' },
+                function (data) {
+                });
+            }
+            else if ($("#Hot_Nozzle_1")[0].firstElementChild.className == "switch-on switch-animate") {
+                $.getJSON("/home", { cmd: 'cold_nozzle_1' },
+                function (data) {
+                });
+            }
+        });
+        $("#Hot_Bed").click(function () {
+            if ($("#Hot_Bed")[0].firstElementChild.className == "switch-off switch-animate") {
+                $.getJSON("/home", { cmd: 'hot_bed' },
+                function (data) {
+                });
+            }
+            else if ($("#Hot_Bed")[0].firstElementChild.className == "switch-on switch-animate") {
+                $.getJSON("/home", { cmd: 'cold_bed' },
+                function (data) {
+                });
+            }
+        });
+        $("#TrashFile").click(function () {
+            var DeleteFileList = "";
+            for (var i = 0 ; i < $("#file .todo .todo-done").length; i++)
+            {
+                var s = $("#file .todo .todo-done")[i].innerText;
+                s = s.split("\n")[0];
+                DeleteFileList = DeleteFileList + s + ";";
+            }
+
+            $.getJSON("/home", { cmd: 'deleteFile:' + DeleteFileList },
+            function (data) {
+                $("#RefreshMask").show();
+                $.getJSON("/home", { cmd: 'file' },
+                function (data) {
+                    filenamelist = data.filelist;
+                    ShowFileListView();
+                    $("#RefreshMask").hide();
+                    $("#FileUpLoadLayer").hide();
+                    uploader.reset();
+                });
+            });
+        });
+
+        $("#UpLoadFile").click(function () {
+            $("input.webuploader-element-invisible").click();
+        });
+
+
+        $("#ctlBtn").click(function () {
+            $("#FileUpLoadLayer").show();
+            ServerBusy = true;
+            uploader.upload();
+        });
+
+        $("#FileUpLoadCancel").click(function () {
+            var Filelist = uploader.getFiles();
+            for (var i = 0; i < Filelist.length; i++)
+            {
+                uploader.removeFile(Filelist[i].id, true);
+            }
+            $("#FileUpLoadLayer").hide();
+        });
+
+
+        $("#RefreshWifiList").click(function () {
+			$("#WifiRefreshMask").show();
+			$.getJSON("/home", { cmd: 'wifi' },
+			function (data) {
+				wifilist = data.wifilist;
+				ShowWifiListView();
+				$("#WifiRefreshMask").hide();
+			});
+        });
+
+        $("#SettingWifi").click(function () {
+		    var ssid = $("#wifi .todo .todo-done")[0].innerText;
+            ssid = ssid.split("\n")[0];
+            $("#ssid")[0].value = ssid;      
+            $("#write")[0].value = "";
+            $("#WifiConnecting").show();
+        });
+
+        $("#ConnectWifi").click(function () {
+            wifi_status = "Connecting";
+            $("#ip")[0].innerHTML = wifi_status + "(" + $("#ssid")[0].value + ")";
+		    $("#GoBackToWifiList").click();
+            $.getJSON("/home", { cmd: 'connect_wifi:' + $("#ssid")[0].value + ";" + $("#write")[0].value},
+            function (data) {
+                var result = data.result;
+				//ShowWifiListView();
+				//$("#WifiConnecting").hide();
+                //$("#WifiRefreshMask").hide();
+            });
+        });
+
+        $("#GoBackToWifiList").click(function () {
+            $("#WifiRefreshMask").show();
+            $("#WifiConnecting").hide();
+            $.getJSON("/home", { cmd: 'wifi' },
+            function (data) {
+                wifilist = data.wifilist;
+                ShowWifiListView();
+                $("#WifiRefreshMask").hide();
+            });
+        });
+
+        $(".Unit input").click(function (e) {
+            var id = e.currentTarget.id;
+            switch (id)
+            {
+                case "checkbox1":
+                    $("#checkbox2")[0].checked = false;
+                    $("#checkbox3")[0].checked = false;
+                    MoveUnit = 0.1;
+                    break;
+                case "checkbox2":
+                    $("#checkbox1")[0].checked = false;
+                    $("#checkbox3")[0].checked = false;
+                    MoveUnit = 1.0;
+                    break;
+                case "checkbox3":
+                    $("#checkbox1")[0].checked = false;
+                    $("#checkbox2")[0].checked = false;
+                    MoveUnit = 10.0;
+                    break;
+            }
+        });
+        $("body").click(function (e) {
+            if (e.target.className != "btn btn-inverse dropdown-toggle") {
+                $("#comPortList").hide();
+            }
+            if (e.target.className != "icon-align-justify") {
+                $("#powerList").hide();
+            }
+        });
+              
+        $("#poweroff").click(function (e) {
+            $.getJSON("/home", { cmd: 'poweroff' },
+            function (data) {
+
+            });
+        });
+
+        $("#reboot").click(function (e) {
+            $.getJSON("/home", { cmd: 'reboot' },
+            function (data) {
+            });
+        });
+
+        $("#ShowPowerSelection").click(function (e) {
+            if ($("#powerList")[0].style.display == 'block') {
+                $("#powerList")[0].style.display = 'none';
+            }
+            else {
+                $("#powerList")[0].style.display = 'block';
+            }
+        });
+        $("#selectComPort").click(function (e) {
+            if ($("#comPortList")[0].style.display == 'block') {
+                $("#comPortList").hide();
+            }
+            else {
+                $("#comPortList").show();
+            }
+        });
+
+        $("#comPortList li").click(function (e) {
+            $.getJSON("/home", { cmd: 'set_serialport' + ':' + e.currentTarget.textContent},
+            function (data) {
+
+            });
+        });
+
+        $("#Forward").click(function (e) {
+
+            $.getJSON("/home", { cmd: 'SerialCMD' + ':' + 'G91\r\n' + 'G1 Y-' + MoveUnit.toString()  + ' F3000\r\n' + 'G90\r\n' },
+            function (data) {
+                if (data.result == 'G91\r\n' + 'G1 Y-' + MoveUnit.toString()  + ' F3000\r\n' + 'G90\r\n') {
+                    $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.result;
+                }
+
+            });
+        });
+        $("#Backward").click(function (e) {
+
+            $.getJSON("/home", { cmd: 'SerialCMD' + ':' + 'G91\r\n' + 'G1 Y' + MoveUnit.toString()  + ' F3000\r\n' + 'G90\r\n' },
+            function (data) {
+                if (data.result == 'G91\r\n' + 'G1 Y' + MoveUnit.toString() + ' F3000\r\n' + 'G90\r\n') {
+                    $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.result;
+                }
+            });
+        });
+
+        $("#Left").click(function (e) {
+
+            $.getJSON("/home", { cmd: 'SerialCMD' + ':' + 'G91\r\n' + 'G1 X' + MoveUnit.toString() + ' F3000\r\n' + 'G90\r\n' },
+            function (data) {
+                if (data.result == 'G91\r\n' + 'G1 X' + MoveUnit.toString()  + ' F3000\r\n' + 'G90\r\n') {
+                    $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.result;
+                }
+            });
+        });
+
+        $("#Right").click(function (e) {
+
+            $.getJSON("/home", { cmd: 'SerialCMD' + ':' + 'G91\r\n' + 'G1 X-' + MoveUnit.toString()  + ' F3000\r\n' + 'G90\r\n' },
+            function (data) {
+                if (data.result == 'G91\r\n' + 'G1 X-' + MoveUnit.toString() + ' F3000\r\n' + 'G90\r\n') {
+                    $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.result;
+                }
+            });
+        });
+
+        $("#Up").click(function (e) {
+
+            $.getJSON("/home", { cmd: 'SerialCMD' + ':' + 'G91\r\n' + 'G1 Z-' + MoveUnit.toString() + ' F200\r\n' + 'G90\r\n' },
+            function (data) {
+                if (data.result == 'G91\r\n' + 'G1 Z-' + MoveUnit.toString()  + ' F200\r\n' + 'G90\r\n') {
+                    $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.result;
+                }
+            });
+        });
+
+        $("#Down").click(function (e) {
+
+            $.getJSON("/home", { cmd: 'SerialCMD' + ':' + 'G91\r\n' + 'G1 Z' + MoveUnit.toString() + ' F200\r\n' + 'G90\r\n' },
+            function (data) {
+                if (data.result == 'G91\r\n' + 'G1 Z' + MoveUnit.toString()  + ' F200\r\n' + 'G90\r\n') {
+                    $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.result;
+                }
+            });
+        });
+
+        $("#PrinterReset").click(function (e) {
+
+            $.getJSON("/home", { cmd: 'SerialCMD' + ':' + 'G28\r\n' },
+            function (data) {
+                if (data.result == 'G28\r\n') {
+                    $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.result;
+                }
+            });
+        });
+
+        $("#SendCMD").click(function (e) {
+            var Cmd = $("#Cmd_To_Send")[0].value;
+            $("#Cmd_To_Send")[0].value = "";
+            $.getJSON("/home", { cmd: 'SerialCMD' + ':' + Cmd + '\r\n' },
+            function (data) {
+                if (data.result == Cmd + '\r\n') {
+                    $("#cmdDialog")[0].value = $("#cmdDialog")[0].value + data.result;
+                }
+            });
+        });
+
+        $("#Cmd_To_Send").focus(function (e) {
+            $("#keyboard2").show();
+        });
+
+        $("#cmdDialog").click(function (e) {
+            $("#keyboard2").hide();
+        });
+
+        
+        //$("#viewTemp").click(function (e) {
+        //    readTempFlag = $("#viewTemp")[0].checked;
+        //});
+    });
+
+    $(function () {
+        $('.chart_noozle_1').easyPieChart({
+            lineCap: 'butt',
+            lineWidth: 20,
+            trackWidth: 16,
+            trackColor: '#ace',
+            scaleColor: false,
+            size:110,
+            onStep: function (from, to, percent_1) {
+                this.el.children[0].innerHTML = Math.round(percent_1*2.4) + "\xb0C";
+            }
+        });
+
+
+
+        $('.hotbed_1').easyPieChart({
+            lineCap: 'butt',
+            lineWidth: 20,
+            trackWidth: 16,
+            trackColor: '#ace',
+            scaleColor: false,
+            size: 110,
+            onStep: function (from, to, percent_2) {
+                this.el.children[0].innerHTML = Math.round(percent_2*1.5) + "\xb0C";
+            }
+        });
+
+
+        $('.print_progress').easyPieChart({
+            lineCap: 'butt',
+            lineWidth: 30,
+            trackWidth: 24,
+            barColor: '#69c',
+            trackColor: '#ace',
+            scaleColor: false,
+            size: 200,
+            onStep: function (from, to, percent_3) {
+                this.el.children[0].innerHTML = percent_3.toFixed(2) + "%";
+            }
+        });
+    });
+
+</script>
+<div>
+    <div id="HeadMask" style="position: absolute;width: 550px;height: 50px; z-index:3000;display:none;"></div>
+    <div id="HeadMask1" style="position: absolute;width: 550px;height: 50px; z-index:3001;display:none;"></div>
+    <div id="DeviceInfo" style="margin-left:540px;position:absolute;margin-top:2px">
+        <div class="icon-signal" style="display:block;font-size:16px;width:200px;">
+            <span id="ip" style="font-size:12px">Unkown</span>
+        </div>
+        <div class="icon-exchange" style="font-size:16px;width:200px;">
+            <span id="usb_to_serial" style="font-size:12px">Unkown</span>
+        </div>
+    </div>
+    <div class="btn-group" id="ShowPowerSelection" style="margin: 2px 0 0 730px;position: absolute;font-size: 36px;line-height:47px;">
+        <button type="button" class="btn dropdown-toggle" data-toggle="dropdown" style="padding: 6px 12px;"><span class="icon-align-justify" style="font-size: 28px;"></span></button>
+        <ul id="powerList" class="dropdown-menu" role="menu" style="display:none; margin-left: -50px;min-width: 100px;background-color:black">
+            <li><a id="poweroff" href="#" style="color:whitesmoke">PowerOff</a></li>
+            <li><a id="reboot" href="#" style="color:whitesmoke">Reboot</a></li>
+            <li><a id="reboot" href="#" style="color:whitesmoke">{{version}}</a></li>
+        </ul>
+    </div>
+    <ul id="myTab" class="nav nav-tabs" style="margin: 0 auto;text-align: center;">
+        <li class="active" style="width: 133px;">
+            <a href="#home" data-toggle="tab">
+                Home
+            </a>
+        </li>
+        <li style="width: 133px;"><a href="#file" data-toggle="tab" id="filelistview">File</a></li>
+        <li style="width: 133px;"><a href="#wifi" data-toggle="tab">Wifi</a></li>
+        <li style="width: 133px;"><a href="#cmd" data-toggle="tab">Setting</a></li>
+    </ul>
+    <div id="myTabContent" class="tab-content">
+
+        <div class="tab-pane fade in active" id="home" style="background-color:whitesmoke;margin:10px;border-radius: 6px 6px 6px 6px;height:400px">
+            <div id="ComfirmMask" style="display:none; position: absolute;font-size: 40px;z-index: 1000;height: 412px;width: 800px;text-align: center;background: white;opacity: 0.2;">
+            </div>
+            <div id="comfirm_dialog" class="modal" style="display: none;height:240px">
+                <div class="modal-header">
+                    <a class="icon-exclamation-sign" style="font-size: 26px;">Info</a>
+                </div>
+                <div class="modal-body" style="text-align: center; height:100px">
+                    <p style="line-height:85px">You sure you want to stop printing!</p>
+                </div>
+                <div class="modal-footer">
+                    <button id="Cancel_Stop_Printing" type="button" class="btn btn-danger" style="width: 100px;">No</button>
+                    <button id="Stop_Printing" type="button" class="btn btn-danger" style="width: 100px;">Yes</button>
+                </div>
+            </div>
+            <table>
+                <tr style="margin-top:10px;display:block"></tr>
+                <tr>
+                    <td style="display: block;"></td>
+                    <td style="text-align: center;width: 400px;display: block;">
+                        <table style="width:100%">
+                            <tr>
+                                <td>
+                                    <div class="print_progress" data-percent="0">
+                                        <div class="percent_3" style="line-height: 200px;display: inline-block;position: absolute;width: 200px;font-size:32px"></div>
+                                    </div>
+                                    <label style="display: block; margin-top:-15px">Progress</label>
+                                </td>
+                            </tr>
+                            <tr style="display: inline-block;margin-top:-40px">
+                                <td>
+                                    <div class="chart_noozle_1" data-percent="0">
+                                        <div class="percent_1" style="line-height: 110px;display: inline-block;position: absolute;width: 110px;"></div>
+                                    </div>
+                                    <label label style="display:block;margin-top:-15px">Nozzle_Temperature</label>
+                                    <div id="Hot_Nozzle_1" class="switch switch-large" style="margin-top:-10px;">
+                                        <input type="checkbox" checked />
+                                    </div>
+                                </td>
+                                <td style="width: 100px;"></td>
+                                <td>
+                                    <div class="hotbed_1" data-percent="0">
+                                        <div class="percent_2" style="line-height: 110px;display: inline-block;position: absolute;width: 110px;"></div>
+                                    </div>
+                                    <label style="display: block; margin-top:-15px">Bed_Temperature</label>
+                                    <div id="Hot_Bed" class="switch switch-large" style="margin-top:-10px;">
+                                        <input type="checkbox" checked />
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="width: 50px;display: block;"></td>
+                    <td style="width: 100%;text-align: center;">
+                        <label id="printing_file_status" style="display:block;margin-top:30px;font-size:20px">Status&nbsp:&nbspNone</label>
+                        <label id="printing_filename" style="display:block;font-size:20px">File&nbsp:&nbspNone</label>
+                        <label id="passed_time" style="display:block;margin-bottom:30px;font-size:20px">Passed Time&nbsp:&nbsp00:00:00</label>
+                        <button id="start" class="button button-giant button-royal button-border button-box" style="margin-right:10px"><i class="icon-play"></i></button>
+                        <button id="pause" class="button button-giant button-royal button-border button-box" style="margin-right:10px"><i class="icon-pause"></i></button>
+                        <button id="stop" class="button button-giant button-royal button-border button-box" style="margin-right:10px"><i class="icon-stop"></i></button>
+                        <div style="margin-top: 30px; margin-left: 210px;">
+                            <img src="/static/logo.png" style="width:150px" />
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="tab-pane fade" id="file">
+            <div id="RefreshMask" style="position: absolute;font-size: 40px;z-index: 2;height: 412px;width: 800px;text-align: center;background: white;opacity: 0.2;">
+                <span><img src="/static/scripts/loading.gif" alt="" style="color:black;margin-top: 160px;"></span>
+            </div>
+            <div id="FileUpLoadLayer" style="position: absolute;font-size: 40px;z-index: 3;height: 412px;width: 800px;text-align: center;background: white; display:none">
+                <button id="FileUpLoadCancel" type="button" class="btn btn-danger">Cancel Upload</button>
+                <div id="uploader" class="wu-example">
+                    <div id="thelist" class="uploader-list"></div>
+                    <div class="btns">
+                        <div id="picker" style="display:none">choose</div>
+                        <button id="ctlBtn" class="btn btn-default" style="display:none">upload</button>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top : 10px;">
+                <div class="col-sm-8 col-md-6" style="width: 100%;">
+                    <div class="todo" style="margin-bottom: 0px;">
+                        <div style="text-align:center; padding: 10px 25px 10px;color: #34495e;background: #1abc9c;background-size: 16px 16px;border-radius: 6px 6px 0 0;">
+                            <button id="RefreshFileList" class="button button-giant button-plain button-border button-box" style="margin-right:40px"><i class="icon-refresh"></i></button>
+                            <button id="UpLoadFile" class="button button-giant button-plain button-border button-box" style="margin-right:40px"><i class="icon-upload-alt"></i></button>
+                            <button id="TrashFile" class="button button-giant button-plain button-border button-box" style="margin-right:40px"><i class="icon-trash"></i></button>
+                            <button id="PrintFile" class="button button-giant button-plain button-border button-box" style="margin-right:0px"><i class="icon-print"></i></button>
+                        </div>
+                        <ul>
+                            <li class="todo-done">
+                                <div class="icon-file" style="font-size: 24px;float: left;padding: 11px 22px 0 0;"></div>
+                                <div class="todo-content">
+                                    <h4 class="todo-name" id="filelist0" style="font-size: 24px;">
+                                        <br>
+                                    </h4>
+                                    <div id="filesize0">
+                                        <br>
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="icon-file" style="font-size: 24px;float: left;padding: 11px 22px 0 0;"></div>
+                                <div class="todo-content">
+                                    <h4 class="todo-name" id="filelist1" style="font-size: 24px;">
+                                        <br>
+                                    </h4>
+                                    <div id="filesize1">
+                                        <br>
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="icon-file" style="font-size: 24px;float: left;padding: 11px 22px 0 0;"></div>
+                                <div class="todo-content">
+                                    <h4 class="todo-name" id="filelist2" style="font-size: 24px;">
+                                        <br>
+                                    </h4>
+                                    <div id="filesize2">
+                                        <br>
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="icon-file" style="font-size: 24px;float: left;padding: 11px 22px 0 0;"></div>
+                                <div class="todo-content">
+                                    <h4 class="todo-name" id="filelist3" style="font-size: 24px;">
+                                        <br>
+                                    </h4>
+                                    <div id="filesize3">
+                                        <br>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                    </div><!-- /.todo -->
+                </div>
+                <div style="text-align:center">
+                    <ul class="pagination" id="FileViewIndex">
+                        <li class="previous"><a href="#fakelink" class="fui-arrow-left"></a></li>
+                        <li class="active"><a href="#fakelink">1</a></li>
+                        <li><a href="#fakelink">2</a></li>
+                        <li><a href="#fakelink">3</a></li>
+                        <li><a href="#fakelink">4</a></li>
+                        <li><a href="#fakelink">5</a></li>
+                        <li><a href="#fakelink">6</a></li>
+                        <li><a href="#fakelink">7</a></li>
+                        <li><a href="#fakelink">8</a></li>
+                        <li class="next"><a href="#fakelink" class="fui-arrow-right"></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="wifi">
+            <div id="WifiRefreshMask" style="position: absolute;font-size: 40px;z-index: 2;height: 412px;width: 800px;text-align: center;background: white;opacity: 0.2;">
+                <span><img src="/static/scripts/loading.gif" alt="" style="color:black;margin-top: 160px;"></span>
+            </div>
+            <div id="WifiConnecting" style="position: absolute;z-index: 3;height: 412px;width: 800px;text-align: center;background-color:whitesmoke;border-radius: 6px 6px 6px 6px; display:none">
+                <table style="display:inline-block;">
+                    <tr style="height:20px;"></tr>
+                    <tr>
+                        <td style="display:inline-block;">
+                            <table>
+                                <tr>
+                                    <td>
+                                        <label style="display:inline-block;width:100px">SSID :</label>
+                                        <input type="text" value="" placeholder="ssid" class="form-control" id="ssid" style="width:280px;display:inline-block;">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label style="display:inline-block;width:100px">Password :</label>
+                                        <input type="text" value="" placeholder="password" class="form-control" id="write" style="width:280px;display:inline-block;">
+                                    </td>
+                                </tr>
+                            </table>
+                        <td style="display: inline-block;margin-left:40px">
+                            <button id="ConnectWifi" class="button button-giant button-royal button-border button-box" style="margin-right:20px"><i class="icon-signin"></i></button>
+                            <button id="GoBackToWifiList" class="button button-giant button-royal button-border button-box"><i class="icon-reply"></i></button>
+                        </td>
+                    </tr>
+                    <tr style="display: inline-table;margin-top:20px">
+                        <td>
+                            <ul id="keyboard">
+                                <li class="symbol"><span class="off">`</span><span class="on">~</span></li>
+                                <li class="symbol"><span class="off">1</span><span class="on">!</span></li>
+                                <li class="symbol"><span class="off">2</span><span class="on">@</span></li>
+                                <li class="symbol"><span class="off">3</span><span class="on">#</span></li>
+                                <li class="symbol"><span class="off">4</span><span class="on">$</span></li>
+                                <li class="symbol"><span class="off">5</span><span class="on">%</span></li>
+                                <li class="symbol"><span class="off">6</span><span class="on">^</span></li>
+                                <li class="symbol"><span class="off">7</span><span class="on">&amp;</span></li>
+                                <li class="symbol"><span class="off">8</span><span class="on">*</span></li>
+                                <li class="symbol"><span class="off">9</span><span class="on">(</span></li>
+                                <li class="symbol"><span class="off">0</span><span class="on">)</span></li>
+                                <li class="symbol"><span class="off">-</span><span class="on">_</span></li>
+                                <li class="symbol"><span class="off">=</span><span class="on">+</span></li>
+                                <li class="delete lastitem">delete</li>
+                                <li class="tab">tab</li>
+                                <li class="letter">q</li>
+                                <li class="letter">w</li>
+                                <li class="letter">e</li>
+                                <li class="letter">r</li>
+                                <li class="letter">t</li>
+                                <li class="letter">y</li>
+                                <li class="letter">u</li>
+                                <li class="letter">i</li>
+                                <li class="letter">o</li>
+                                <li class="letter">p</li>
+                                <li class="symbol"><span class="off">[</span><span class="on">{</span></li>
+                                <li class="symbol"><span class="off">]</span><span class="on">}</span></li>
+                                <li class="symbol lastitem"><span class="off">\</span><span class="on">|</span></li>
+                                <li class="capslock">caps lock</li>
+                                <li class="letter">a</li>
+                                <li class="letter">s</li>
+                                <li class="letter">d</li>
+                                <li class="letter">f</li>
+                                <li class="letter">g</li>
+                                <li class="letter">h</li>
+                                <li class="letter">j</li>
+                                <li class="letter">k</li>
+                                <li class="letter">l</li>
+                                <li class="symbol"><span class="off">;</span><span class="on">:</span></li>
+                                <li class="symbol"><span class="off">'</span><span class="on">&quot;</span></li>
+                                <li class="return lastitem">return</li>
+                                <li class="left-shift">shift</li>
+                                <li class="letter">z</li>
+                                <li class="letter">x</li>
+                                <li class="letter">c</li>
+                                <li class="letter">v</li>
+                                <li class="letter">b</li>
+                                <li class="letter">n</li>
+                                <li class="letter">m</li>
+                                <li class="symbol"><span class="off">,</span><span class="on">&lt;</span></li>
+                                <li class="symbol"><span class="off">.</span><span class="on">&gt;</span></li>
+                                <li class="symbol"><span class="off">/</span><span class="on">?</span></li>
+                                <li class="right-shift lastitem">shift</li>
+                                <li class="space lastitem">&nbsp;</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div style="margin-top : 10px;">
+                <div class="col-sm-8 col-md-6" style="width: 100%;">
+                    <div class="todo" style="margin-bottom: 0px;">
+                        <div style="text-align:center; padding: 10px 25px 10px;color: #34495e;background: #1abc9c;background-size: 16px 16px;border-radius: 6px 6px 0 0;">
+                            <button id="RefreshWifiList" class="button button-giant button-plain button-border button-box" style="margin-right:60px"><i class="icon-refresh"></i></button>
+                            <button id="SettingWifi" class="button button-giant button-plain button-border button-box" style="margin-right:0px"><i class="icon-cog"></i></button>
+                        </div>
+                        <ul>
+                            <li class="todo-done">
+                                <div class="icon-signal" style="font-size: 24px;float: left;padding: 11px 22px 0 0;"></div>
+                                <div class="todo-content">
+                                    <h4 class="todo-name" id="wifilist0" style="font-size: 24px;">
+                                        <br>
+                                    </h4>
+                                    <div id="wifiinfo0">
+                                        <br>
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="icon-signal" style="font-size: 24px;float: left;padding: 11px 22px 0 0;"></div>
+                                <div class="todo-content">
+                                    <h4 class="todo-name" id="wifilist1" style="font-size: 24px;">
+                                        <br>
+                                    </h4>
+                                    <div id="wifiinfo1">
+                                        <br>
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="icon-signal" style="font-size: 24px;float: left;padding: 11px 22px 0 0;"></div>
+                                <div class="todo-content">
+                                    <h4 class="todo-name" id="wifilist2" style="font-size: 24px;">
+                                        <br>
+                                    </h4>
+                                    <div id="wifiinfo2">
+                                        <br>
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="icon-signal" style="font-size: 24px;float: left;padding: 11px 22px 0 0;"></div>
+                                <div class="todo-content">
+                                    <h4 class="todo-name" id="wifilist3" style="font-size: 24px;">
+                                        <br>
+                                    </h4>
+                                    <div id="wifiinfo3">
+                                        <br>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                    </div><!-- /.todo -->
+                </div>
+                <div style="text-align:center">
+                    <ul class="pagination" id="WifiViewIndex">
+                        <li class="previous"><a href="#fakelink" class="fui-arrow-left"></a></li>
+                        <li class="active"><a href="#fakelink">1</a></li>
+                        <li><a href="#fakelink">2</a></li>
+                        <li><a href="#fakelink">3</a></li>
+                        <li><a href="#fakelink">4</a></li>
+                        <li><a href="#fakelink">5</a></li>
+                        <li><a href="#fakelink">6</a></li>
+                        <li><a href="#fakelink">7</a></li>
+                        <li><a href="#fakelink">8</a></li>
+                        <li class="next"><a href="#fakelink" class="fui-arrow-right"></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="cmd" style="background-color:whitesmoke;margin:10px;border-radius: 6px 6px 6px 6px; height:400px">
+            <div>
+                <ul id="keyboard2" style="position:absolute;width:360px;margin-left:402px;background-color:whitesmoke;z-index:4;padding-left: 30px;padding-top: 10px;height: 400px;display:none">
+                    <li class="letter">M</li>
+                    <li class="letter">G</li>
+                    <li class="letter">X</li>
+                    <li class="letter">Y</li>
+                    <li class="letter">Z</li>
+                    <li class="letter">S</li>
+                    <li class="symbol"><span class="off">-</span>
+                    <li class="symbol"><span class="off">1</span>
+                    <li class="symbol"><span class="off">2</span>
+                    <li class="symbol"><span class="off">3</span>
+                    <li class="symbol"><span class="off">4</span>
+                    <li class="symbol"><span class="off">5</span>
+                    <li class="symbol"><span class="off">6</span>
+                    <li class="symbol"><span class="off">7</span>
+                    <li class="symbol"><span class="off">8</span>
+                    <li class="symbol"><span class="off">9</span>
+                    <li class="symbol"><span class="off">0</span>
+                    <li class="letter">E</li>
+                    <li class="letter">R</li>
+                    <li class="letter">T</li>
+                    <li class="letter">P</li>
+                    <li class="letter">F</li>          
+                    <li class="letter">.</li>         
+                    <li class="delete lastitem">delete</li>
+                    <li class="space lastitem">&nbsp;</li>
+                </ul>
+            </div>
+            <table>
+                <tr>
+                    <td>
+                        <div style="width: 400px">
+                            <textarea class="form-control" rows="15" id="cmdDialog"></textarea>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="Cmd_To_Send">
+                                <span class="input-group-btn">
+                                    <button class="btn btn-default" type="button" id="SendCMD">Send</button>
+                                </span>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="display: block">
+                        <table>
+                            <tr>
+                                <td style="width: 200px">
+                                    <label class="checkbox" for="viewTemp" style="margin-left: 20px;">
+                                        <input type="checkbox" value="" id="viewTemp" data-toggle="checkbox">
+                                        Display Temperature
+                                    </label>
+                                    <div class="btn-group" id="selectComPort" style="margin-left: 20px;">
+                                        <button type="button" class="btn btn-inverse dropdown-toggle" data-toggle="dropdown">setSerial<span class="caret"></span></button>
+                                        <ul id="comPortList" class="dropdown-menu dropdown-menu-inverse" role="menu">
+                                            <li><a id="comport0" href="#">1</a></li>
+                                            <li><a id="comport1" href="#">2</a></li>
+                                            <li><a id="comport2" href="#">3</a></li>
+                                        </ul>
+                                    </div>
+                                    <button id="PrinterReset" type="button" class="btn btn-danger" style="width:103px; margin-left: 20px;margin-top:20px">Home</button>
+                                </td>
+                                <td>
+                                    <div class="Unit" style="margin-left: 40px;margin-top:25px">
+                                        <label class="checkbox" for="checkbox1">
+                                            <input type="checkbox" value="" id="checkbox1" data-toggle="checkbox">
+                                            0.1mm
+                                        </label>
+                                        <label class="checkbox" for="checkbox2">
+                                            <input type="checkbox" checked="checked" value="" id="checkbox2" data-toggle="checkbox">
+                                            1mm
+                                        </label>
+                                        <label class="checkbox" for="checkbox3">
+                                            <input type="checkbox" value="" id="checkbox3" data-toggle="checkbox">
+                                            10mm
+                                        </label>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div style="position:absolute;margin-top:30px;margin-left:10px">
+                                        <button id="Forward" class="button button-giant button-royal button-border button-box" style="display: block;margin-left:70px"><i class="icon-arrow-up"></i></button>
+                                        <button id="Left" class="button button-giant button-royal button-border button-box" style="margin-right: 0px;"><i class="icon-arrow-left"></i></button>
+                                        <div style="width: 65px;display: inline-block;text-align: center;">
+                                            <label style="font-size:24px">x/y</label>
+                                        </div>
+                                        <button id="Right" class="button button-giant button-royal button-border button-box"><i class="icon-arrow-right"></i></button>
+                                        <button id="Backward" class="button button-giant button-royal button-border button-box" style="display: block;margin-left:70px"><i class="icon-arrow-down"></i></button>
+                                    </div>
+                                <td>
+                                    <div style="position:absolute;margin-top:30px;margin-left:10px">
+                                        <button id="Up" class="button button-giant button-royal button-border button-box" style="display: block;margin-left:60px"><i class="icon-arrow-up"></i></button>
+                                        <div style="line-height: 65px;text-align: center; margin-top:5px;margin-left:60px">
+                                            <label style="width: 70px; font-size:24px;text-align: center">z</label>
+                                        </div>
+                                        <button id="Down" class="button button-giant button-royal button-border button-box" style="display: block;margin-left:60px;"><i class="icon-arrow-down"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,111 @@
+#keyboard {
+margin: 0;
+padding: 0;
+list-style: none;
+}
+	#keyboard li {
+	float: left;
+	margin: 0 2px 3px 0;
+	width: 50px;
+	height: 50px;
+	line-height: 50px;
+	text-align: center;
+	background: #fff;
+	border: 1px solid #f9f9f9;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	}
+		.capslock, .tab, .left-shift {
+		clear: left;
+		}
+			#keyboard .tab, #keyboard .delete {
+			width: 70px;
+			}
+			#keyboard .capslock {
+			width: 88px;
+			}
+			#keyboard .return {
+			width: 85px;
+			}
+			#keyboard .left-shift {
+			width: 113px;
+			}
+			#keyboard .right-shift {
+			width: 113px;
+			}
+		.lastitem {
+		margin-right: 0;
+		}
+		.uppercase {
+		text-transform: uppercase;
+		}
+		#keyboard .space {
+		clear: left;
+		width: 748px;
+		}
+		.on {
+		display: none;
+		}
+		#keyboard li:hover {
+		position: relative;
+		top: 1px;
+		left: 1px;
+		border-color: #e5e5e5;
+		cursor: pointer;
+		}
+
+#keyboard2 {
+margin: 0;
+padding: 0;
+list-style: none;
+}
+	#keyboard2 li {
+	float: left;
+	margin: 0 2px 3px 0;
+	width: 60px;
+	height: 60px;
+	line-height: 60px;
+	text-align: center;
+	background: #fff;
+	border: 1px solid #f9f9f9;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	}
+		.capslock, .tab, .left-shift {
+		clear: left;
+		}
+			#keyboard2 .tab, #keyboard2 .delete {
+			width: 122px;
+			}
+			#keyboard2 .capslock {
+			width: 88px;
+			}
+			#keyboard2 .return {
+			width: 85px;
+			}
+			#keyboard2 .left-shift {
+			width: 113px;
+			}
+			#keyboard2 .right-shift {
+			width: 113px;
+			}
+		.lastitem {
+		margin-right: 0;
+		}
+		.uppercase {
+		text-transform: uppercase;
+		}
+		#keyboard2 .space {
+		clear: left;
+		width: 308px;
+		}
+		.on {
+		display: none;
+		}
+		#keyboard2 li:hover {
+		position: relative;
+		top: 1px;
+		left: 1px;
+		border-color: #e5e5e5;
+		cursor: pointer;
+		}
